@@ -59,4 +59,4 @@ docker-compose up -d
 
 ## Developed by
 IDBI Bank, Surat Branch — AnnaSetu Initiative  
-Concept: Major Subhasish Sinha, AGM & Branch Head  
+Concept:Subhasish Sinha, AGM & Branch Head  
