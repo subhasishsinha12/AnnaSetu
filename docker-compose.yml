@@ -1,118 +1,101 @@
 version: '3.9'
 
 services:
-  # ── LAYER 01: Donor API ──────────────────────────────────────
+  # ── Infrastructure ──
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: annasetu
+      POSTGRES_USER: annasetu
+      POSTGRES_PASSWORD: changeme
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U annasetu"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+
+  # ── Layer 01: Donor API ──
   donor-api:
     build: ./layer-01-donor
-    container_name: annasetu-donor-api
     ports:
       - "3001:3001"
     environment:
       NODE_ENV: development
-      MONGO_URI: mongodb://mongo:27017/annasetu_donors
       DONOR_API_PORT: 3001
-      ONDC_GATEWAY_URL: http://ondc-gateway:3002
-      FABRIC_PEER_URL: grpc://peer0.org1.annasetu.com:7051
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      ONDC_SELLER_URL: http://ondc-seller:3002
     depends_on:
-      - mongo
-      - redis
+      postgres:
+        condition: service_healthy
     volumes:
-      - ./layer-01-donor/src:/app/src
-    networks:
-      - annasetu-net
+      - ./layer-01-donor:/app
+      - /app/node_modules
 
-  # ── LAYER 02: ONDC Gateway ───────────────────────────────────
-  ondc-gateway:
+  # ── Layer 02: ONDC Nodes ──
+  ondc-seller:
     build: ./layer-02-ondc
-    container_name: annasetu-ondc
+    command: node seller-node/index.js
     ports:
       - "3002:3002"
     environment:
-      NODE_ENV: development
-      ONDC_PORT: 3002
-      DONOR_API_URL: http://donor-api:3001
-    depends_on:
-      - redis
-    networks:
-      - annasetu-net
+      ONDC_SELLER_PORT: 3002
+      ONDC_BUYER_URL: http://ondc-buyer:3003
 
-  # ── LAYER 04: Identity Service ───────────────────────────────
-  identity-service:
-    build: ./layer-04-identity/kyc-service
-    container_name: annasetu-identity
-    ports:
-      - "8001:8001"
-    environment:
-      NODE_ENV: development
-      IDENTITY_API_PORT: 8001
-    networks:
-      - annasetu-net
-
-  # ── LAYER 05: Finance Service ────────────────────────────────
-  finance-service:
-    build: ./layer-05-finance/erupi-service
-    container_name: annasetu-finance
+  ondc-buyer:
+    build: ./layer-02-ondc
+    command: node buyer-node/index.js
     ports:
       - "3003:3003"
     environment:
-      NODE_ENV: development
-      FINANCE_API_PORT: 3003
-      MONGO_URI: mongodb://mongo:27017/annasetu_finance
+      ONDC_BUYER_PORT: 3003
+      ONDC_SELLER_URL: http://ondc-seller:3002
+
+  # ── Layer 04: Identity Service ──
+  identity-service:
+    build: ./layer-04-identity/kyc-service
+    ports:
+      - "8001:8001"
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+    environment:
+      POSTGRES_HOST: postgres
+
+  # ── Layer 05: e-RUPI Service ──
+  erupi-service:
+    build: ./layer-05-finance/erupi-service
+    ports:
+      - "3005:3005"
+    environment:
+      ERUPI_PORT: 3005
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
     depends_on:
-      - mongo
+      - postgres
       - redis
-    networks:
-      - annasetu-net
 
-  # ── LAYER 06: Beneficiary Frontend ──────────────────────────
-  beneficiary-ui:
+  # ── Layer 06: Beneficiary Portal ──
+  beneficiary-portal:
     build: ./layer-06-beneficiary/web-app
-    container_name: annasetu-ui
     ports:
-      - "5173:5173"
+      - "3000:3000"
     environment:
-      VITE_API_BASE_URL: http://localhost:3001
-      VITE_FINANCE_API_URL: http://localhost:3003
-    networks:
-      - annasetu-net
-
-  # ── Infrastructure ───────────────────────────────────────────
-  mongo:
-    image: mongo:7.0
-    container_name: annasetu-mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    networks:
-      - annasetu-net
-
-  redis:
-    image: redis:7.2-alpine
-    container_name: annasetu-redis
-    ports:
-      - "6379:6379"
-    networks:
-      - annasetu-net
-
-  # Mongo Express (dev only)
-  mongo-express:
-    image: mongo-express:1.0
-    container_name: annasetu-mongo-ui
-    ports:
-      - "8081:8081"
-    environment:
-      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017
+      VITE_ERUPI_API: http://localhost:3005
+      VITE_KYC_API: http://localhost:8001
     depends_on:
-      - mongo
-    networks:
-      - annasetu-net
-    profiles:
-      - dev-tools
+      - erupi-service
+      - identity-service
 
 volumes:
-  mongo-data:
-
-networks:
-  annasetu-net:
-    driver: bridge
+  postgres_data:

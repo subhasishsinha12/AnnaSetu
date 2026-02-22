@@ -1,76 +1,93 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import axios from 'axios'
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+
+const API = import.meta.env.VITE_ERUPI_API || 'http://localhost:3005';
 
 export default function Dashboard() {
-  const { user } = useAuth()
-  const [credits, setCredits] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [vouchers, setVouchers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const beneficiaryId = localStorage.getItem('beneficiaryId') || 'BEN-DEMO';
 
   useEffect(() => {
-    fetchCredits()
-  }, [])
+    setLoading(true);
+    axios.get(`${API}/api/v1/beneficiary/${beneficiaryId}/vouchers`)
+      .then(r => setVouchers(r.data.vouchers || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [beneficiaryId]);
 
-  const fetchCredits = async () => {
-    try {
-      const res = await axios.get(`${import.meta.env.VITE_FINANCE_API_URL}/api/v1/credits/beneficiary/${user?.aadhaarHash}`)
-      setCredits(res.data.data || [])
-    } catch (err) {
-      console.error('Failed to fetch credits:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const totalBalance = credits.filter(c => c.status === 'active').reduce((s, c) => s + (c.amount - c.redeemedAmount), 0)
+  const totalBalance = vouchers.filter(v => v.status === 'ACTIVE').reduce((s, v) => s + v.balanceINR, 0);
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-12">
-      <div className="mb-8">
-        <p className="font-mono text-teal-500 text-xs tracking-widest uppercase">Beneficiary Dashboard</p>
-        <h1 className="text-3xl font-serif font-light mt-1">Welcome, {user?.name || 'Beneficiary'}</h1>
-        <p className="text-slate-500 text-sm mt-1 font-mono">Ration Card: {user?.rationCardNo || 'GJ-XX-XXXX'}</p>
-      </div>
-
-      {/* Balance Card */}
-      <div className="bg-gradient-to-br from-orange-950 to-slate-900 border border-orange-900/50 rounded-lg p-8 mb-8">
-        <p className="text-orange-300 text-sm font-mono tracking-widest uppercase mb-2">Available Food Credit</p>
-        <p className="text-6xl font-serif font-bold text-orange-400">₹{totalBalance.toLocaleString('en-IN')}</p>
-        <p className="text-slate-400 text-sm mt-2">Redeemable at any AnnaSetu registered store</p>
-        <div className="mt-6 flex gap-3">
-          <a href="/redeem" className="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded transition-colors">
-            Redeem Now →
-          </a>
+    <div className="max-w-md mx-auto p-4">
+      {/* Header */}
+      <div className="bg-amber-700 text-white rounded-2xl p-6 mb-6 shadow-lg">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-3xl">🌾</span>
+          <div>
+            <h1 className="text-xl font-bold">AnnaSetu</h1>
+            <p className="text-amber-200 text-sm">Your Food Credit Wallet</p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <p className="text-amber-200 text-xs uppercase tracking-widest">Available Balance</p>
+          <p className="text-4xl font-bold">₹{totalBalance.toLocaleString('en-IN')}</p>
         </div>
       </div>
 
-      {/* Credits List */}
-      <div>
-        <h2 className="text-lg font-semibold text-slate-300 mb-4">Credit History</h2>
-        {loading ? (
-          <div className="text-slate-500 text-center py-8">Loading...</div>
-        ) : credits.length === 0 ? (
-          <div className="text-slate-500 text-center py-8 border border-slate-800 rounded-lg">No credits yet. Check with your local SFDO.</div>
-        ) : (
-          <div className="space-y-3">
-            {credits.map(credit => (
-              <div key={credit.creditId} className="bg-slate-900 border border-slate-800 rounded-lg p-5 flex items-center justify-between">
-                <div>
-                  <p className="font-mono text-xs text-slate-500">{credit.creditId}</p>
-                  <p className="text-slate-200 font-semibold mt-1">₹{credit.amount} Food Credit</p>
-                  <p className="text-slate-500 text-xs mt-1">Expires: {new Date(credit.expiryDate).toLocaleDateString('en-IN')}</p>
-                </div>
-                <div className="text-right">
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${credit.status === 'active' ? 'bg-green-950 text-green-400' : 'bg-slate-800 text-slate-500'}`}>
-                    {credit.status.toUpperCase()}
-                  </span>
-                  <p className="text-slate-400 text-sm mt-2">Balance: <span className="text-teal-400">₹{credit.amount - credit.redeemedAmount}</span></p>
-                </div>
-              </div>
-            ))}
+      {/* Quick Actions */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        {[
+          { icon: '🛒', label: 'Use Credit', href: '/vouchers' },
+          { icon: '🗺️', label: 'Nearby Stores', href: '/stores' },
+          { icon: '📋', label: 'My History', href: '/vouchers' }
+        ].map(action => (
+          <a key={action.label} href={action.href}
+            className="bg-white rounded-xl p-3 text-center shadow hover:shadow-md transition-shadow">
+            <div className="text-2xl mb-1">{action.icon}</div>
+            <div className="text-xs text-gray-600 font-medium">{action.label}</div>
+          </a>
+        ))}
+      </div>
+
+      {/* Active Vouchers */}
+      <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+        <span>🎫</span> Active Food Credits
+      </h2>
+      {loading && <div className="text-center py-8 text-gray-400">Loading...</div>}
+      {!loading && vouchers.length === 0 && (
+        <div className="bg-white rounded-xl p-8 text-center text-gray-400 shadow">
+          <div className="text-4xl mb-3">🌾</div>
+          <p>No active credits yet</p>
+          <p className="text-sm mt-1">Credits are loaded monthly</p>
+        </div>
+      )}
+      {vouchers.map(v => (
+        <div key={v.voucherId} className="bg-white rounded-xl p-4 mb-3 shadow flex justify-between items-center">
+          <div>
+            <p className="font-semibold text-gray-800">Food Credit Voucher</p>
+            <p className="text-xs text-gray-500">{v.voucherId}</p>
+            <p className="text-xs text-gray-400">Valid until {new Date(v.expiryDate).toLocaleDateString('en-IN')}</p>
           </div>
-        )}
+          <div className="text-right">
+            <p className="text-xl font-bold text-amber-700">₹{v.balanceINR}</p>
+            <span className={`text-xs px-2 py-1 rounded-full ${v.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+              {v.status}
+            </span>
+          </div>
+        </div>
+      ))}
+
+      {/* How to use */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
+        <h3 className="font-semibold text-amber-800 mb-2">How to use your credit</h3>
+        <ol className="text-sm text-amber-700 space-y-1">
+          <li>1. Go to any authorised kirana store or Fair Price Shop</li>
+          <li>2. Choose vegetables, pulses, milk, eggs — any nutritious food</li>
+          <li>3. Show your voucher QR code or SMS at checkout</li>
+          <li>4. Payment deducted from your food credit balance</li>
+        </ol>
       </div>
     </div>
-  )
+  );
 }

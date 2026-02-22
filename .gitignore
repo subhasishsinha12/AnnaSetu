@@ -1,41 +1,16 @@
-# Dependencies
 node_modules/
 __pycache__/
 *.pyc
-.venv/
-venv/
-
-# Environment
 .env
-.env.local
-
-# Build
+*.env.local
 dist/
 build/
-*.egg-info/
-
-# Logs
-logs/
-*.log
-
-# OS
 .DS_Store
-Thumbs.db
-
-# IDE
-.vscode/settings.json
-.idea/
-
-# Blockchain artifacts
-layer-03-blockchain/network/organizations/
-layer-03-blockchain/network/channel-artifacts/
-crypto-config/
-
-# Secrets
-*.pem
-*.key
-
-# Coverage
+*.log
 coverage/
 .nyc_output/
-htmlcov/
+.vscode/
+*.key
+*.pem
+wallet/
+keystore/

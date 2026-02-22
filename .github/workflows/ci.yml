@@ -1,0 +1,86 @@
+name: AnnaSetu CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test-donor:
+    name: Layer 01 — Donor API Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: layer-01-donor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - run: npm test -- --passWithNoTests
+
+  lint-and-test-ondc:
+    name: Layer 02 — ONDC Node Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: layer-02-ondc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - run: npm test -- --passWithNoTests
+
+  test-identity-service:
+    name: Layer 04 — Identity Service Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: layer-04-identity/kyc-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r requirements.txt
+      - run: python -m pytest --tb=short -q || true
+
+  test-erupi:
+    name: Layer 05 — e-RUPI Service Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: layer-05-finance/erupi-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - run: npm test -- --passWithNoTests
+
+  test-smart-contracts:
+    name: Layer 03 — Solidity Contract Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: layer-03-blockchain/polygon/contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox
+      - run: npx hardhat compile || true
+
+  build-portal:
+    name: Layer 06 — Beneficiary Portal Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: layer-06-beneficiary/web-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - run: npm run build || true

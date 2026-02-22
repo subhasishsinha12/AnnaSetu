@@ -1,46 +1,24 @@
 # Contributing to AnnaSetu
 
-Thank you for your interest in contributing to India's food security mission!
+## Branch Strategy
+- `main` — production-ready code
+- `develop` — integration branch
+- `feature/layer-XX-description` — feature branches
 
-## Development Setup
+## Layer Owners
+| Layer | Owner | Stack |
+|-------|-------|-------|
+| layer-01-donor | Backend Team | Node.js |
+| layer-02-ondc | Integration Team | Node.js + Beckn |
+| layer-03-blockchain | Blockchain Team | Go/Node.js + Solidity |
+| layer-04-identity | Security Team | Python |
+| layer-05-finance | FinTech Team | Node.js |
+| layer-06-beneficiary | Frontend Team | React |
 
-1. **Fork** this repository
-2. **Clone** your fork: `git clone https://github.com/YOUR_USERNAME/AnnaSetu.git`
-3. **Install dependencies** for the layer you're working on
-4. **Create a branch**: `git checkout -b feat/your-feature-name`
-5. **Make changes** with tests
-6. **Submit a PR** to the `develop` branch
-
-## Branch Naming Convention
-- `feat/layer-01-iot-integration` — new features
-- `fix/layer-05-credit-expiry-bug` — bug fixes
-- `docs/api-reference-update` — documentation
-- `test/layer-03-chaincode-coverage` — test improvements
-
-## Commit Convention (Conventional Commits)
+## Commit Convention
 ```
-feat(layer-01): add IoT cold chain sensor integration
-fix(layer-05): resolve credit balance calculation edge case
-docs(layer-03): add chaincode deployment guide
-test(layer-04): add Aadhaar hash unit tests
-chore(infra): update Docker Compose for Fabric 2.5
+feat(layer-01): add IoT sensor telemetry endpoint
+fix(layer-05): handle expired voucher redemption
+docs: update ONDC integration guide
+test(layer-04): add KYC OTP verification tests
 ```
-
-## Code Standards
-- **Node.js**: ESLint + Prettier (config in `.eslintrc.json`)
-- **Python**: Black formatter, flake8 linting
-- **Solidity**: Solhint, Hardhat test coverage > 90%
-- **Tests**: Required for all new features
-
-## Security
-- Never commit real API keys, Aadhaar numbers, or credentials
-- Use `.env` files (gitignored) for secrets
-- Report security vulnerabilities privately to maintainers
-
-## Areas Needing Contribution
-- 🔴 IoT sensor mock service for development
-- 🔴 Kirana POS merchant interface (Layer 06)
-- 🟡 ONDC Buyer App for NGO mobile interface
-- 🟡 Polygon ID ZK credential issuer service
-- 🟢 Unit tests for all services
-- 🟢 API documentation improvements
