@@ -1,0 +1,238 @@
+name: AnnaSetu CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ── Layer 01: Donor API ──
+  test-donor-api:
+    name: "L01 · Donor API (Node.js)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: layer-01-donor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: layer-01-donor/package-lock.json
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm test -- --passWithNoTests --forceExit
+      - name: Health check (start + ping)
+        run: |
+          node api/server.js &
+          sleep 3
+          curl -f http://localhost:3001/health || exit 1
+          kill %1
+
+  # ── Layer 02: ONDC Nodes ──
+  test-ondc:
+    name: "L02 · ONDC Beckn Nodes (Node.js)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: layer-02-ondc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: layer-02-ondc/package-lock.json
+      - name: Install dependencies
+        run: npm install
+      - name: Start Seller Node + health check
+        run: |
+          node seller-node/index.js &
+          sleep 3
+          curl -f http://localhost:3002/health || exit 1
+          kill %1
+      - name: Start Buyer Node + health check
+        run: |
+          node buyer-node/index.js &
+          sleep 3
+          curl -f http://localhost:3003/health || exit 1
+          kill %1
+      - name: Test Beckn /search endpoint
+        run: |
+          node seller-node/index.js &
+          sleep 3
+          curl -sf -X POST http://localhost:3002/search \
+            -H "Content-Type: application/json" \
+            -d '{"context":{"bap_id":"test.ngo.com","action":"search"},"message":{"intent":{}}}' \
+            | grep -q "ACK"
+          kill %1
+
+  # ── Layer 03: Blockchain ──
+  test-blockchain:
+    name: "L03 · Blockchain (Chaincode + Solidity)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Validate Hyperledger chaincode syntax
+        working-directory: layer-03-blockchain/chaincode/surplus-food
+        run: |
+          npm install
+          node -e "require('./index.js'); console.log('Chaincode syntax OK')"
+
+      - name: Install Hardhat + compile Solidity
+        working-directory: layer-03-blockchain/polygon/contracts
+        run: |
+          npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox
+          npx hardhat compile
+          echo "Solidity compilation successful"
+
+      - name: Verify AnnaSetu.sol artifact
+        working-directory: layer-03-blockchain/polygon/contracts
+        run: |
+          test -f artifacts/contracts/AnnaSetu.sol/AnnaSetu.json
+          echo "ABI artifact generated"
+
+  # ── Layer 04: Identity Service ──
+  test-identity:
+    name: "L04 · Identity Service (Python/FastAPI)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: layer-04-identity/kyc-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Start service + health check
+        run: |
+          uvicorn main:app --host 0.0.0.0 --port 8001 &
+          sleep 4
+          curl -f http://localhost:8001/health || exit 1
+          kill %1
+      - name: Test OTP send endpoint
+        run: |
+          uvicorn main:app --host 0.0.0.0 --port 8001 &
+          sleep 4
+          RESP=$(curl -sf -X POST http://localhost:8001/api/v1/kyc/send-otp \
+            -H "Content-Type: application/json" \
+            -d '{"aadhaar_number":"123456789012","mobile_last4":"0000"}')
+          echo $RESP | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['success']==True; print('OTP endpoint OK')"
+          kill %1
+      - name: Test OTP verify endpoint
+        run: |
+          uvicorn main:app --host 0.0.0.0 --port 8001 &
+          sleep 4
+          SESSION=$(curl -sf -X POST http://localhost:8001/api/v1/kyc/send-otp \
+            -H "Content-Type: application/json" \
+            -d '{"aadhaar_number":"123456789012","mobile_last4":"0000"}' \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['session_id'])")
+          curl -sf -X POST http://localhost:8001/api/v1/kyc/verify-otp \
+            -H "Content-Type: application/json" \
+            -d "{\"aadhaar_number\":\"123456789012\",\"otp\":\"123456\",\"session_id\":\"$SESSION\"}" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['success']==True; print('OTP verify OK')"
+          kill %1
+
+  # ── Layer 05: e-RUPI Service ──
+  test-erupi:
+    name: "L05 · e-RUPI Finance Service (Node.js)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: layer-05-finance/erupi-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: layer-05-finance/erupi-service/package-lock.json
+      - name: Install dependencies
+        run: npm install
+      - name: Start service + health check
+        run: |
+          node server.js &
+          sleep 3
+          curl -f http://localhost:3005/health || exit 1
+          kill %1
+      - name: Test voucher issuance
+        run: |
+          node server.js &
+          sleep 3
+          VOUCHER_ID=$(curl -sf -X POST http://localhost:3005/api/v1/vouchers/issue \
+            -H "Content-Type: application/json" \
+            -d '{"beneficiaryId":"BEN-TEST-001","mobile":"9999999999","nfsaCategory":"PHH","districtCode":"GJ020"}' \
+            | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8'); console.log(JSON.parse(d).voucherId)")
+          echo "Issued voucher: $VOUCHER_ID"
+          curl -sf http://localhost:3005/api/v1/vouchers/$VOUCHER_ID | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8'); const v=JSON.parse(d); console.log('Balance:', v.voucher.balanceINR)"
+          kill %1
+      - name: Test voucher redemption
+        run: |
+          node server.js &
+          sleep 3
+          VOUCHER_ID=$(curl -sf -X POST http://localhost:3005/api/v1/vouchers/issue \
+            -H "Content-Type: application/json" \
+            -d '{"beneficiaryId":"BEN-TEST-002","mobile":"8888888888","nfsaCategory":"AAY","districtCode":"GJ020"}' \
+            | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8'); console.log(JSON.parse(d).voucherId)")
+          curl -sf -X POST http://localhost:3005/api/v1/vouchers/redeem \
+            -H "Content-Type: application/json" \
+            -d "{\"voucherId\":\"$VOUCHER_ID\",\"merchantId\":\"MERCHANT-001\",\"merchantUPI\":\"merchant@upi\",\"amountINR\":250}" \
+            | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8'); const r=JSON.parse(d); console.log('Redeemed:', r.success, 'Balance:', r.remainingBalance)"
+          kill %1
+
+  # ── Layer 06: Beneficiary Portal ──
+  build-portal:
+    name: "L06 · Beneficiary Portal (React 18)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: layer-06-beneficiary/web-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: layer-06-beneficiary/web-app/package-lock.json
+      - name: Install dependencies
+        run: npm install
+      - name: Build production bundle
+        run: npm run build
+        env:
+          VITE_ERUPI_API: http://localhost:3005
+          VITE_KYC_API: http://localhost:8001
+
+  # ── Integration Summary ──
+  integration-check:
+    name: "All Layers · Integration Gate"
+    runs-on: ubuntu-latest
+    needs: [test-donor-api, test-ondc, test-blockchain, test-identity, test-erupi, build-portal]
+    steps:
+      - name: All layers passed
+        run: |
+          echo ""
+          echo "  ✅  AnnaSetu CI — All 6 Layers Passed"
+          echo ""
+          echo "  L01  Donor API           Node.js/Express"
+          echo "  L02  ONDC Beckn Nodes    Beckn Protocol"
+          echo "  L03  Blockchain          Hyperledger + Polygon"
+          echo "  L04  Identity Service    Python/FastAPI"
+          echo "  L05  e-RUPI Finance      Node.js"
+          echo "  L06  Beneficiary Portal  React 18"
+          echo ""
+          echo "  India's Digital Food Bridge is ready"
+          echo ""
