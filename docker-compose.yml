@@ -1,0 +1,118 @@
+version: '3.9'
+
+services:
+  # ── LAYER 01: Donor API ──────────────────────────────────────
+  donor-api:
+    build: ./layer-01-donor
+    container_name: annasetu-donor-api
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017/annasetu_donors
+      DONOR_API_PORT: 3001
+      ONDC_GATEWAY_URL: http://ondc-gateway:3002
+      FABRIC_PEER_URL: grpc://peer0.org1.annasetu.com:7051
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - ./layer-01-donor/src:/app/src
+    networks:
+      - annasetu-net
+
+  # ── LAYER 02: ONDC Gateway ───────────────────────────────────
+  ondc-gateway:
+    build: ./layer-02-ondc
+    container_name: annasetu-ondc
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: development
+      ONDC_PORT: 3002
+      DONOR_API_URL: http://donor-api:3001
+    depends_on:
+      - redis
+    networks:
+      - annasetu-net
+
+  # ── LAYER 04: Identity Service ───────────────────────────────
+  identity-service:
+    build: ./layer-04-identity/kyc-service
+    container_name: annasetu-identity
+    ports:
+      - "8001:8001"
+    environment:
+      NODE_ENV: development
+      IDENTITY_API_PORT: 8001
+    networks:
+      - annasetu-net
+
+  # ── LAYER 05: Finance Service ────────────────────────────────
+  finance-service:
+    build: ./layer-05-finance/erupi-service
+    container_name: annasetu-finance
+    ports:
+      - "3003:3003"
+    environment:
+      NODE_ENV: development
+      FINANCE_API_PORT: 3003
+      MONGO_URI: mongodb://mongo:27017/annasetu_finance
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - annasetu-net
+
+  # ── LAYER 06: Beneficiary Frontend ──────────────────────────
+  beneficiary-ui:
+    build: ./layer-06-beneficiary/web-app
+    container_name: annasetu-ui
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:3001
+      VITE_FINANCE_API_URL: http://localhost:3003
+    networks:
+      - annasetu-net
+
+  # ── Infrastructure ───────────────────────────────────────────
+  mongo:
+    image: mongo:7.0
+    container_name: annasetu-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - annasetu-net
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: annasetu-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - annasetu-net
+
+  # Mongo Express (dev only)
+  mongo-express:
+    image: mongo-express:1.0
+    container_name: annasetu-mongo-ui
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017
+    depends_on:
+      - mongo
+    networks:
+      - annasetu-net
+    profiles:
+      - dev-tools
+
+volumes:
+  mongo-data:
+
+networks:
+  annasetu-net:
+    driver: bridge
