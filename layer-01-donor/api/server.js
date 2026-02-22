@@ -1,6 +1,6 @@
 /**
  * AnnaSetu Layer 01: Donor Integration API
- * Supermarket surplus food detection, listing, ONDC broadcast
+ * Surplus food detection, ONDC broadcast, IoT telemetry
  */
 require('dotenv').config({ path: '../.env' });
 const express = require('express');
@@ -14,16 +14,32 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Routes
-app.use('/api/v1/surplus', require('./routes/surplus'));
-app.use('/api/v1/donors', require('./routes/donor'));
-app.use('/api/v1/lots', require('./routes/lot'));
-app.use('/health', require('./routes/health'));
-
-app.use((err, req, res, next) => {
-  console.error(err.message);
-  res.status(500).json({ error: err.message });
+// Request logger
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
 });
 
-app.listen(PORT, () => console.log(`AnnaSetu Donor API running on :${PORT}`));
+// Routes
+app.use('/api/v1/surplus', require('./routes/surplus'));
+app.use('/api/v1/donors',  require('./routes/donor'));
+app.use('/api/v1/lots',    require('./routes/lot'));
+app.use('/health', require('./routes/health'));
+
+// 404
+app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('[ERROR]', err.message);
+  res.status(500).json({ error: 'Internal server error', message: err.message });
+});
+
+const server = app.listen(PORT, () => {
+  console.log(`AnnaSetu Donor API running on :${PORT}`);
+});
+
+// Graceful shutdown for CI
+process.on('SIGTERM', () => server.close());
+
 module.exports = app;

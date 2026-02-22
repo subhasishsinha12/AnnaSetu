@@ -1,20 +1,23 @@
 /**
- * SurplusService — Core business logic for surplus food detection
- * Integrates: Expiry check → ONDC broadcast → Hyperledger record
+ * SurplusService — Core logic for surplus food detection
  */
-const { v4: uuidv4 } = require('uuid');
+
+let uuidv4;
+try {
+  uuidv4 = require('uuid').v4;
+} catch(e) {
+  // fallback if uuid not installed yet
+  uuidv4 = () => Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
 
 const EXPIRY_THRESHOLDS = {
-  perishable: 48,      // hours
-  packaged: 7 * 24,    // hours
-  frozen: 72,          // hours
-  produce: 24          // hours
+  perishable: 48,
+  packaged: 7 * 24,
+  frozen: 72,
+  produce: 24
 };
 
 class SurplusService {
-  /**
-   * Detect near-expiry items and auto-list on ONDC
-   */
   static async detectAndList({ donorId, storeId, items }) {
     const lotId = `LOT-${uuidv4().substring(0, 8).toUpperCase()}`;
     const now = new Date();
@@ -30,10 +33,7 @@ class SurplusService {
       return { lotId, itemsDetected: 0, ondc_broadcast: false, hyperledger_txId: null };
     }
 
-    // Mock ONDC broadcast
     const ondc_broadcast = await this.broadcastToONDC({ lotId, donorId, storeId, items: surplusItems });
-
-    // Mock Hyperledger record
     const hyperledger_txId = `TX-${uuidv4().replace(/-/g, '').substring(0, 24).toUpperCase()}`;
 
     return {
@@ -47,8 +47,7 @@ class SurplusService {
   }
 
   static async broadcastToONDC({ lotId, donorId, storeId, items }) {
-    // In production: call ONDC Seller Node API with Beckn search/select flow
-    console.log(`[ONDC] Broadcasting lot ${lotId} to surplus food domain`);
+    console.log(`[ONDC] Broadcasting lot ${lotId} with ${items.length} items`);
     return {
       success: true,
       listingId: `ONDC-${uuidv4().substring(0, 8).toUpperCase()}`,
@@ -58,27 +57,23 @@ class SurplusService {
   }
 
   static async getActiveLots({ donorId, status, page, limit }) {
-    // In production: query PostgreSQL with filters
     return { lots: [], total: 0, page: parseInt(page), limit: parseInt(limit) };
   }
 
   static async getLotWithProvenance(lotId) {
-    // In production: join DB + Hyperledger ledger for provenance trail
     return {
       lotId,
       status: 'AVAILABLE',
       provenance: [
-        { event: 'LOT_CREATED', timestamp: new Date().toISOString(), txId: `TX-MOCK-001` },
-        { event: 'ONDC_BROADCAST', timestamp: new Date().toISOString(), txId: `TX-MOCK-002` }
+        { event: 'LOT_CREATED', timestamp: new Date().toISOString(), txId: `TX-MOCK-001` }
       ]
     };
   }
 
   static async recordTelemetry({ lotId, sensorId, temperature, humidity, timestamp }) {
-    // In production: write to Hyperledger + alert if cold chain breach
-    const isBreach = temperature > 8; // >8°C for cold chain
+    const isBreach = temperature > 8;
     if (isBreach) console.warn(`[COLD CHAIN BREACH] Lot ${lotId}: ${temperature}°C`);
-    return { id: uuidv4(), lotId, sensorId, temperature, humidity, breach: isBreach, recordedAt: timestamp || new Date().toISOString() };
+    return { id: uuidv4(), lotId, sensorId, temperature, humidity, breach: isBreach };
   }
 }
 

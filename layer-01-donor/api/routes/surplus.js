@@ -1,68 +1,20 @@
-/**
- * @file surplus.js
- * Surplus food detection and ONDC listing routes
- */
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
 const SurplusService = require('../../services/SurplusService');
 
-/**
- * @swagger
- * /api/v1/surplus/detect:
- *   post:
- *     tags: [Surplus]
- *     summary: Detect near-expiry items from POS/ERP
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               donorId: { type: string }
- *               storeId: { type: string }
- *               items:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     productId: { type: string }
- *                     productName: { type: string }
- *                     quantity: { type: number }
- *                     unit: { type: string }
- *                     expiryDate: { type: string, format: date }
- *                     batchNo: { type: string }
- *                     coldChainRequired: { type: boolean }
- *                     category: { type: string }
- */
+// POST /api/v1/surplus/detect
 router.post('/detect', async (req, res, next) => {
   try {
     const { donorId, storeId, items } = req.body;
-
     if (!donorId || !storeId || !items?.length) {
       return res.status(400).json({ error: 'donorId, storeId and items required' });
     }
-
     const result = await SurplusService.detectAndList({ donorId, storeId, items });
-    res.status(201).json({
-      success: true,
-      lotId: result.lotId,
-      itemsDetected: result.itemsDetected,
-      ondc_broadcast: result.ondc_broadcast,
-      hyperledger_txId: result.hyperledger_txId,
-      message: 'Surplus items detected and broadcast to ONDC network'
-    });
+    res.status(201).json({ success: true, ...result, message: 'Surplus items processed' });
   } catch (err) { next(err); }
 });
 
-/**
- * @swagger
- * /api/v1/surplus/lots:
- *   get:
- *     tags: [Surplus]
- *     summary: List all active surplus lots
- */
+// GET /api/v1/surplus/lots
 router.get('/lots', async (req, res, next) => {
   try {
     const { donorId, status, page = 1, limit = 20 } = req.query;
@@ -71,28 +23,15 @@ router.get('/lots', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-/**
- * @swagger
- * /api/v1/surplus/lots/{lotId}:
- *   get:
- *     tags: [Surplus]
- *     summary: Get lot details with blockchain provenance
- */
+// GET /api/v1/surplus/lots/:lotId
 router.get('/lots/:lotId', async (req, res, next) => {
   try {
     const lot = await SurplusService.getLotWithProvenance(req.params.lotId);
-    if (!lot) return res.status(404).json({ error: 'Lot not found' });
     res.json({ success: true, lot });
   } catch (err) { next(err); }
 });
 
-/**
- * @swagger
- * /api/v1/surplus/webhook/iot:
- *   post:
- *     tags: [Surplus]
- *     summary: IoT sensor temperature telemetry for cold chain
- */
+// POST /api/v1/surplus/webhook/iot
 router.post('/webhook/iot', async (req, res, next) => {
   try {
     const { lotId, sensorId, temperature, humidity, timestamp } = req.body;

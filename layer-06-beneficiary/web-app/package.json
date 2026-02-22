@@ -1,14 +1,19 @@
 {
   "name": "@annasetu/beneficiary-portal",
   "version": "1.0.0",
-  "description": "AnnaSetu beneficiary portal — check credits, find stores, redeem food vouchers",
+  "description": "AnnaSetu beneficiary portal — food credits, vouchers, nearby stores",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
     "axios": "^1.6.2",
-    "qrcode.react": "^3.1.0",
-    "@tanstack/react-query": "^5.13.4"
+    "qrcode.react": "^3.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
@@ -16,10 +21,5 @@
     "tailwindcss": "^3.4.0",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
   }
 }
