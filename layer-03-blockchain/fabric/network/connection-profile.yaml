@@ -1,0 +1,133 @@
+# =============================================================================
+# AnnaSetu — Layer 03: Hyperledger Fabric Network Configuration
+# 3-Organization Network: DonorOrg, NGOOrg, BankOrg
+# Fabric v2.5 + Fabric CA
+# =============================================================================
+
+name: "annasetu-network"
+version: "2.5"
+
+client:
+  organization: DonorOrg
+  logging:
+    level: info
+  connection:
+    timeout:
+      peer:
+        endorser: '300'
+
+organizations:
+  DonorOrg:
+    mspid: DonorOrgMSP
+    peers:
+      - peer0.donororg.annasetu.in
+    certificateAuthorities:
+      - ca.donororg.annasetu.in
+    adminPrivateKey:
+      path: ./crypto-config/peerOrganizations/donororg.annasetu.in/users/Admin@donororg.annasetu.in/msp/keystore/priv_sk
+    signedCert:
+      path: ./crypto-config/peerOrganizations/donororg.annasetu.in/users/Admin@donororg.annasetu.in/msp/signcerts/Admin@donororg.annasetu.in-cert.pem
+
+  NGOOrg:
+    mspid: NGOOrgMSP
+    peers:
+      - peer0.ngoorg.annasetu.in
+    certificateAuthorities:
+      - ca.ngoorg.annasetu.in
+    adminPrivateKey:
+      path: ./crypto-config/peerOrganizations/ngoorg.annasetu.in/users/Admin@ngoorg.annasetu.in/msp/keystore/priv_sk
+    signedCert:
+      path: ./crypto-config/peerOrganizations/ngoorg.annasetu.in/users/Admin@ngoorg.annasetu.in/msp/signcerts/Admin@ngoorg.annasetu.in-cert.pem
+
+  BankOrg:
+    mspid: BankOrgMSP
+    peers:
+      - peer0.bankorg.annasetu.in
+    certificateAuthorities:
+      - ca.bankorg.annasetu.in
+    adminPrivateKey:
+      path: ./crypto-config/peerOrganizations/bankorg.annasetu.in/users/Admin@bankorg.annasetu.in/msp/keystore/priv_sk
+    signedCert:
+      path: ./crypto-config/peerOrganizations/bankorg.annasetu.in/users/Admin@bankorg.annasetu.in/msp/signcerts/Admin@bankorg.annasetu.in-cert.pem
+
+orderers:
+  orderer.annasetu.in:
+    url: grpcs://orderer.annasetu.in:7050
+    grpcOptions:
+      ssl-target-name-override: orderer.annasetu.in
+      hostnameOverride: orderer.annasetu.in
+    tlsCACerts:
+      path: ./crypto-config/ordererOrganizations/annasetu.in/orderers/orderer.annasetu.in/msp/tlscacerts/tlsca.annasetu.in-cert.pem
+
+peers:
+  peer0.donororg.annasetu.in:
+    url: grpcs://peer0.donororg.annasetu.in:7051
+    grpcOptions:
+      ssl-target-name-override: peer0.donororg.annasetu.in
+      hostnameOverride: peer0.donororg.annasetu.in
+    tlsCACerts:
+      path: ./crypto-config/peerOrganizations/donororg.annasetu.in/peers/peer0.donororg.annasetu.in/msp/tlscacerts/tlsca.donororg.annasetu.in-cert.pem
+
+  peer0.ngoorg.annasetu.in:
+    url: grpcs://peer0.ngoorg.annasetu.in:7051
+    grpcOptions:
+      ssl-target-name-override: peer0.ngoorg.annasetu.in
+      hostnameOverride: peer0.ngoorg.annasetu.in
+    tlsCACerts:
+      path: ./crypto-config/peerOrganizations/ngoorg.annasetu.in/peers/peer0.ngoorg.annasetu.in/msp/tlscacerts/tlsca.ngoorg.annasetu.in-cert.pem
+
+  peer0.bankorg.annasetu.in:
+    url: grpcs://peer0.bankorg.annasetu.in:7051
+    grpcOptions:
+      ssl-target-name-override: peer0.bankorg.annasetu.in
+      hostnameOverride: peer0.bankorg.annasetu.in
+    tlsCACerts:
+      path: ./crypto-config/peerOrganizations/bankorg.annasetu.in/peers/peer0.bankorg.annasetu.in/msp/tlscacerts/tlsca.bankorg.annasetu.in-cert.pem
+
+certificateAuthorities:
+  ca.donororg.annasetu.in:
+    url: https://ca.donororg.annasetu.in:7054
+    caName: ca-donororg
+    tlsCACerts:
+      path: ./crypto-config/peerOrganizations/donororg.annasetu.in/ca/ca.donororg.annasetu.in-cert.pem
+    httpOptions:
+      verify: false
+
+  ca.ngoorg.annasetu.in:
+    url: https://ca.ngoorg.annasetu.in:7054
+    caName: ca-ngoorg
+    tlsCACerts:
+      path: ./crypto-config/peerOrganizations/ngoorg.annasetu.in/ca/ca.ngoorg.annasetu.in-cert.pem
+    httpOptions:
+      verify: false
+
+  ca.bankorg.annasetu.in:
+    url: https://ca.bankorg.annasetu.in:7054
+    caName: ca-bankorg
+    tlsCACerts:
+      path: ./crypto-config/peerOrganizations/bankorg.annasetu.in/ca/ca.bankorg.annasetu.in-cert.pem
+    httpOptions:
+      verify: false
+
+channels:
+  annasetu-channel:
+    orderers:
+      - orderer.annasetu.in
+    peers:
+      peer0.donororg.annasetu.in:
+        endorsingPeer: true
+        chaincodeQuery:  true
+        ledgerQuery:     true
+        eventSource:     true
+      peer0.ngoorg.annasetu.in:
+        endorsingPeer: true
+        chaincodeQuery:  true
+        ledgerQuery:     true
+        eventSource:     true
+      peer0.bankorg.annasetu.in:
+        endorsingPeer: true
+        chaincodeQuery:  true
+        ledgerQuery:     true
+        eventSource:     true
+    chaincodes:
+      - annasetu-donation:1.0

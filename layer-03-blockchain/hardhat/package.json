@@ -1,0 +1,27 @@
+{
+  "name": "annasetu-blockchain",
+  "version": "1.0.0",
+  "description": "AnnaSetu Hyperledger + Polygon smart contracts",
+  "scripts": {
+    "compile":    "hardhat compile",
+    "test":       "hardhat test",
+    "test:gas":   "REPORT_GAS=true hardhat test",
+    "coverage":   "hardhat coverage",
+    "deploy:amoy":"hardhat run scripts/deploy-amoy.js --network amoy",
+    "deploy:local":"hardhat run scripts/deploy-amoy.js --network localhost",
+    "verify":     "hardhat verify --network amoy",
+    "node":       "hardhat node"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.10",
+    "chai": "^4.3.10",
+    "hardhat": "^2.22.0",
+    "hardhat-gas-reporter": "^1.0.10",
+    "solidity-coverage": "^0.8.12"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "ethers": "^6.13.0"
+  }
+}
