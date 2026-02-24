@@ -1,0 +1,314 @@
+version: '3.9'
+
+# =============================================================================
+# AnnaSetu — Full Stack Docker Compose
+# All 6 layers + supporting infrastructure
+# =============================================================================
+
+x-common-env: &common-env
+  NODE_ENV: development
+  DATABASE_URL: postgresql://annasetu:annasetu_dev@postgres:5432/annasetu
+  REDIS_URL: redis://redis:6379
+  LOG_LEVEL: info
+
+networks:
+  annasetu-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  postgres-data:
+  redis-data:
+  fabric-data:
+  cert-output:
+  ipfs-data:
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgis/postgis:15-3.4
+    container_name: annasetu-postgres
+    environment:
+      POSTGRES_DB:       annasetu
+      POSTGRES_USER:     annasetu
+      POSTGRES_PASSWORD: annasetu_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./layer-01-donor/sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    networks:
+      - annasetu-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U annasetu"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: annasetu-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - annasetu-net
+
+  # ── Layer 01: Donor API ─────────────────────────────────────────────────────
+
+  donor-api:
+    build:
+      context: ./layer-01-donor
+      dockerfile: Dockerfile
+    container_name: annasetu-donor-api
+    environment:
+      <<: *common-env
+      PORT: 3001
+      CERT_OUTPUT_DIR: /certs
+      UIDAI_SANDBOX_MODE: mock
+      HASH_SALT: ${HASH_SALT:-annasetu_dev_salt_2025}
+      SENDGRID_KEY: ${SENDGRID_KEY:-}
+      TWILIO_SID: ${TWILIO_SID:-}
+      TWILIO_TOKEN: ${TWILIO_TOKEN:-}
+      TWILIO_FROM: ${TWILIO_FROM:-}
+      DMART_WEBHOOK_SECRET: ${DMART_WEBHOOK_SECRET:-dmart_dev_secret_2025}
+      RELIANCE_WEBHOOK_SECRET: ${RELIANCE_WEBHOOK_SECRET:-reliance_dev_secret_2025}
+      BIGBASKET_WEBHOOK_SECRET: ${BIGBASKET_WEBHOOK_SECRET:-bb_dev_secret_2025}
+    ports:
+      - "3001:3001"
+    volumes:
+      - cert-output:/certs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - annasetu-net
+    restart: unless-stopped
+
+  pos-simulator:
+    build:
+      context: ./layer-01-donor
+      dockerfile: Dockerfile.simulator
+    container_name: annasetu-pos-simulator
+    environment:
+      DONOR_API_URL: http://donor-api:3001
+      SIMULATOR_PORT: 3099
+    ports:
+      - "3099:3099"
+    depends_on:
+      - donor-api
+    networks:
+      - annasetu-net
+
+  # ── Layer 02: ONDC Server ───────────────────────────────────────────────────
+
+  ondc-server:
+    build:
+      context: ./layer-02-ondc
+      dockerfile: Dockerfile
+    container_name: annasetu-ondc
+    environment:
+      <<: *common-env
+      PORT: 3002
+      BAPP_URI: http://ondc-server:3002
+      BPP_URI: http://ondc-server:3002
+    ports:
+      - "3002:3002"
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - annasetu-net
+    restart: unless-stopped
+
+  # ── Layer 03: Blockchain ────────────────────────────────────────────────────
+
+  # Hyperledger Fabric orderer
+  orderer:
+    image: hyperledger/fabric-orderer:2.5
+    container_name: annasetu-orderer
+    environment:
+      FABRIC_LOGGING_SPEC: INFO
+      ORDERER_GENERAL_LISTENPORT: 7050
+      ORDERER_GENERAL_GENESISMETHOD: file
+      ORDERER_GENERAL_GENESISFILE: /var/hyperledger/orderer/genesis.block
+      ORDERER_GENERAL_LOCALMSPID: OrdererMSP
+      ORDERER_GENERAL_LOCALMSPDIR: /var/hyperledger/orderer/msp
+      ORDERER_GENERAL_TLS_ENABLED: "true"
+      ORDERER_GENERAL_TLS_PRIVATEKEY: /var/hyperledger/orderer/tls/server.key
+      ORDERER_GENERAL_TLS_CERTIFICATE: /var/hyperledger/orderer/tls/server.crt
+      ORDERER_GENERAL_TLS_ROOTCAS: '[/var/hyperledger/orderer/tls/ca.crt]'
+    volumes:
+      - ./layer-03-blockchain/fabric/network/genesis.block:/var/hyperledger/orderer/genesis.block
+      - ./layer-03-blockchain/fabric/crypto-config/ordererOrganizations/annasetu.in/orderers/orderer.annasetu.in/msp:/var/hyperledger/orderer/msp
+      - ./layer-03-blockchain/fabric/crypto-config/ordererOrganizations/annasetu.in/orderers/orderer.annasetu.in/tls:/var/hyperledger/orderer/tls
+      - fabric-data:/var/hyperledger/production/orderer
+    ports:
+      - "7050:7050"
+    networks:
+      annasetu-net:
+        aliases:
+          - orderer.annasetu.in
+
+  peer0-donororg:
+    image: hyperledger/fabric-peer:2.5
+    container_name: peer0.donororg.annasetu.in
+    environment:
+      CORE_PEER_ID: peer0.donororg.annasetu.in
+      CORE_PEER_ADDRESS: peer0.donororg.annasetu.in:7051
+      CORE_PEER_LISTENADDRESS: "0.0.0.0:7051"
+      CORE_PEER_CHAINCODEADDRESS: peer0.donororg.annasetu.in:7052
+      CORE_PEER_CHAINCODELISTENADDRESS: "0.0.0.0:7052"
+      CORE_PEER_GOSSIP_BOOTSTRAP: peer0.donororg.annasetu.in:7051
+      CORE_PEER_GOSSIP_EXTERNALENDPOINT: peer0.donororg.annasetu.in:7051
+      CORE_PEER_LOCALMSPID: DonorOrgMSP
+      CORE_PEER_TLS_ENABLED: "true"
+      CORE_PEER_TLS_CERT_FILE: /etc/hyperledger/fabric/tls/server.crt
+      CORE_PEER_TLS_KEY_FILE: /etc/hyperledger/fabric/tls/server.key
+      CORE_PEER_TLS_ROOTCERT_FILE: /etc/hyperledger/fabric/tls/ca.crt
+      CORE_LEDGER_STATE_STATEDATABASE: CouchDB
+      CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS: couchdb:5984
+    ports:
+      - "7051:7051"
+    networks:
+      annasetu-net:
+        aliases:
+          - peer0.donororg.annasetu.in
+
+  couchdb:
+    image: couchdb:3.3
+    container_name: annasetu-couchdb
+    environment:
+      COUCHDB_USER:     admin
+      COUCHDB_PASSWORD: adminpw
+    ports:
+      - "5984:5984"
+    networks:
+      - annasetu-net
+
+  # ── Layer 04: Identity ──────────────────────────────────────────────────────
+
+  identity-service:
+    build:
+      context: ./layer-04-identity
+      dockerfile: Dockerfile
+    container_name: annasetu-identity
+    environment:
+      <<: *common-env
+      PORT: 8001
+      UIDAI_SANDBOX_MODE: mock
+      HASH_SALT: ${HASH_SALT:-annasetu_dev_salt_2025}
+      POLYGON_ISSUER_DID: ${POLYGON_ISSUER_DID:-did:polygonid:polygon:amoy:demo}
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - annasetu-net
+    restart: unless-stopped
+
+  # ── Layer 05: e-RUPI ────────────────────────────────────────────────────────
+
+  erupi-service:
+    build:
+      context: ./layer-05-erupi
+      dockerfile: Dockerfile
+    container_name: annasetu-erupi
+    environment:
+      <<: *common-env
+      PORT: 3005
+      NPCI_HMAC_KEY: ${NPCI_HMAC_KEY:-npci_dev_key}
+      POLYGON_RPC_URL: ${POLYGON_RPC_URL:-https://rpc-amoy.polygon.technology/}
+      ESCROW_CONTRACT: ${ESCROW_CONTRACT:-}
+    ports:
+      - "3005:3005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - annasetu-net
+    restart: unless-stopped
+
+  # ── Layer 06: Beneficiary Portal ────────────────────────────────────────────
+
+  beneficiary-portal:
+    build:
+      context: ./layer-06-beneficiary
+      dockerfile: Dockerfile
+      args:
+        VITE_DONOR_API:    http://localhost:3001
+        VITE_ONDC_API:     http://localhost:3002
+        VITE_IDENTITY_API: http://localhost:8001
+        VITE_ERUPI_API:    http://localhost:3005
+    container_name: annasetu-portal
+    ports:
+      - "3000:80"
+    networks:
+      - annasetu-net
+
+  sms-service:
+    build:
+      context: ./layer-06-beneficiary
+      dockerfile: Dockerfile.sms
+    container_name: annasetu-sms
+    environment:
+      <<: *common-env
+      SMS_PORT: 3007
+      TWILIO_SID: ${TWILIO_SID:-}
+      TWILIO_TOKEN: ${TWILIO_TOKEN:-}
+      TWILIO_FROM: ${TWILIO_FROM:-}
+    ports:
+      - "3007:3007"
+    depends_on:
+      - postgres
+    networks:
+      - annasetu-net
+
+  # ── API Gateway / Nginx ─────────────────────────────────────────────────────
+
+  nginx:
+    image: nginx:alpine
+    container_name: annasetu-gateway
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - donor-api
+      - ondc-server
+      - identity-service
+      - erupi-service
+      - beneficiary-portal
+    networks:
+      - annasetu-net
+    restart: unless-stopped
+
+  # ── Monitoring ──────────────────────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: annasetu-prometheus
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - annasetu-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: annasetu-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: annasetu_grafana
+    ports:
+      - "3100:3000"
+    networks:
+      - annasetu-net
