@@ -1,0 +1,45 @@
+{
+  "recommendations": [
+    // React + JS
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "dsznajder.es7-react-js-snippets",
+    "burkeholland.simple-react-snippets",
+
+    // Tailwind CSS
+    "bradlc.vscode-tailwindcss",
+
+    // Python (FastAPI / KYC service)
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.black-formatter",
+
+    // Docker / DevOps
+    "ms-azuretools.vscode-docker",
+    "ms-vscode-remote.remote-containers",
+
+    // REST / API testing
+    "humao.rest-client",
+
+    // Git
+    "eamodio.gitlens",
+    "mhutchie.git-graph",
+
+    // Env files
+    "mikestead.dotenv",
+
+    // YAML (docker-compose, Fabric configs)
+    "redhat.vscode-yaml",
+
+    // Blockchain / Solidity (Polygon layer)
+    "juanblanco.solidity",
+
+    // Markdown
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+
+    // General productivity
+    "streetsidesoftware.code-spell-checker",
+    "christian-kohler.path-intellisense"
+  ]
+}

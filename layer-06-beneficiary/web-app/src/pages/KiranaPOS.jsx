@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 
-const API = import.meta.env.VITE_ERUPI_API || 'http://localhost:3005';
+const API = '/api/erupi';
 
 export default function KiranaPOS() {
   const [voucherId, setVoucherId] = useState('');

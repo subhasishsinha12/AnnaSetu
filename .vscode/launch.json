@@ -1,0 +1,56 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Layer-06: Vite Dev Server (Beneficiary Portal)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/layer-06-beneficiary/web-app/node_modules/vite/bin/vite.js",
+      "args": ["--port", "5173", "--host", "127.0.0.1"],
+      "cwd": "${workspaceFolder}/layer-06-beneficiary/web-app",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Layer-01: Donor API (Node/Express :3001)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/layer-01-donor/src/index.js",
+      "cwd": "${workspaceFolder}/layer-01-donor",
+      "envFile": "${workspaceFolder}/layer-01-donor/.env",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Layer-05: e-RUPI Service (Node/Express :3005)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/layer-05-finance/erupi-service/src/index.js",
+      "cwd": "${workspaceFolder}/layer-05-finance/erupi-service",
+      "envFile": "${workspaceFolder}/layer-05-finance/erupi-service/.env",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Layer-04: KYC FastAPI (Python :8001)",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["main:app", "--host", "127.0.0.1", "--port", "8001", "--reload"],
+      "cwd": "${workspaceFolder}/layer-04-identity",
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "AnnaSetu: Full Stack (All Layers)",
+      "configurations": [
+        "Layer-06: Vite Dev Server (Beneficiary Portal)",
+        "Layer-01: Donor API (Node/Express :3001)",
+        "Layer-05: e-RUPI Service (Node/Express :3005)",
+        "Layer-04: KYC FastAPI (Python :8001)"
+      ],
+      "stopAll": true
+    }
+  ]
+}

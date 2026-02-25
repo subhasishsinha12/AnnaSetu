@@ -9,7 +9,12 @@ build/
 *.log
 coverage/
 .nyc_output/
-.vscode/
+# VS Code — ignore personal/machine-specific files, but track workspace configs
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 *.key
 *.pem
 wallet/

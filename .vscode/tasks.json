@@ -1,0 +1,76 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install: Layer-06 Dependencies",
+      "type": "shell",
+      "command": "node node_modules/npm/bin/npm-cli.js install",
+      "options": { "cwd": "${workspaceFolder}/layer-06-beneficiary/web-app" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "Start: Vite Dev (Layer-06)",
+      "type": "shell",
+      "command": "node node_modules/vite/bin/vite.js --port 5173 --host 127.0.0.1",
+      "options": { "cwd": "${workspaceFolder}/layer-06-beneficiary/web-app" },
+      "group": "build",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "group": "servers" },
+      "problemMatcher": {
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "vite",
+          "endsPattern": "Local:"
+        }
+      }
+    },
+    {
+      "label": "Start: Donor API (Layer-01 :3001)",
+      "type": "shell",
+      "command": "node src/index.js",
+      "options": { "cwd": "${workspaceFolder}/layer-01-donor" },
+      "group": "build",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "group": "servers" }
+    },
+    {
+      "label": "Start: e-RUPI Service (Layer-05 :3005)",
+      "type": "shell",
+      "command": "node src/index.js",
+      "options": { "cwd": "${workspaceFolder}/layer-05-finance/erupi-service" },
+      "group": "build",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "group": "servers" }
+    },
+    {
+      "label": "Start: KYC FastAPI (Layer-04 :8001)",
+      "type": "shell",
+      "command": "python -m uvicorn main:app --host 127.0.0.1 --port 8001 --reload",
+      "options": { "cwd": "${workspaceFolder}/layer-04-identity" },
+      "group": "build",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "group": "servers" }
+    },
+    {
+      "label": "AnnaSetu: Start All Services",
+      "dependsOn": [
+        "Start: Donor API (Layer-01 :3001)",
+        "Start: e-RUPI Service (Layer-05 :3005)",
+        "Start: KYC FastAPI (Layer-04 :8001)",
+        "Start: Vite Dev (Layer-06)"
+      ],
+      "dependsOrder": "parallel",
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always" }
+    },
+    {
+      "label": "Build: Layer-06 Production",
+      "type": "shell",
+      "command": "node node_modules/vite/bin/vite.js build",
+      "options": { "cwd": "${workspaceFolder}/layer-06-beneficiary/web-app" },
+      "group": { "kind": "build" }
+    }
+  ]
+}

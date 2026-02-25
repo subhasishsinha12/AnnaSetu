@@ -1,0 +1,57 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.rulers": [100],
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+
+  // Tailwind CSS IntelliSense
+  "tailwindCSS.includeLanguages": {
+    "javascript": "javascript",
+    "javascriptreact": "javascriptreact"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    ["clsx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"],
+    ["className\\s*=\\s*['\"`]([^'\"`]*)['\"`]"]
+  ],
+
+  // ESLint
+  "eslint.validate": ["javascript", "javascriptreact"],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // Python (KYC / Layer-04 FastAPI service)
+  "python.defaultInterpreterPath": "${workspaceFolder}/layer-04-identity/.venv/Scripts/python.exe",
+  "python.analysis.typeCheckingMode": "basic",
+
+  // File associations
+  "files.associations": {
+    "*.jsx": "javascriptreact",
+    "*.env*": "dotenv"
+  },
+
+  // Search exclusions (large / generated dirs)
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.git": true,
+    "**/venv": true,
+    "**/.venv": true,
+    "**/fabric-network/**": true
+  },
+
+  // Explorer
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml",
+    "vite.config.*": "*.config.*",
+    "docker-compose.yml": "docker-compose.*.yml"
+  },
+
+  // Git
+  "git.autofetch": true,
+  "git.confirmSync": false
+}

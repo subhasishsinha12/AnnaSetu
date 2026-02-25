@@ -14,7 +14,7 @@ const MyVouchers        = lazy(() => import('./pages/MyVouchers'));
 const RedeemPage        = lazy(() => import('./pages/RedeemPage'));
 const NearbyStores      = lazy(() => import('./pages/NearbyStores'));
 const DonorDashboard    = lazy(() => import('./pages/DonorDashboard'));
-const KiranaPOS         = lazy(() => import('../kirana-pos/src/KiranaPOS'));
+const KiranaPOS         = lazy(() => import('./pages/KiranaPOS'));
 
 // ── PWA Offline Banner ────────────────────────────────────────────────────────
 function OfflineBanner() {
@@ -107,7 +107,7 @@ export default function App() {
   const [role, setRole] = useState(() => localStorage.getItem('annasetu_role') || 'beneficiary');
 
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <div className="min-h-screen bg-gray-50 max-w-sm mx-auto relative">
         <OfflineBanner />
         <Header />
